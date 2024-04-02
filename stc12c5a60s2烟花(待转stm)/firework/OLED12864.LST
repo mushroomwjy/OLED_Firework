@@ -1,0 +1,27 @@
+C51 COMPILER V9.56.0.0   OLED12864                                                         01/30/2022 01:24:11 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE OLED12864
+OBJECT MODULE PLACED IN OLED12864.OBJ
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE OLED12864.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\SRC) DEBUG OBJECTEXT
+                    -END TABS(2)
+
+line level    source
+
+   1          #include "stc12c5a60s2.h"
+   2          #include "OLED12864.h"
+   3          #include "OLED.h"
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   ----    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

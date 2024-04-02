@@ -1,0 +1,151 @@
+C51 COMPILER V9.56.0.0   MAIN                                                              01/30/2022 01:24:10 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE main.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\SRC) DEBUG OBJECTEXTEND T
+                    -ABS(2)
+
+line level    source
+
+   1          //////////////////////////////////////////////////////////////////////////////////   
+   2          //本程序只供学习使用，未经作者许可，不得用于其它任何用途
+   3          //中景园电子
+   4          //店铺地址：http://shop73023976.taobao.com/?spm=2013.1.0.0.M4PqC2
+   5          //
+   6          //  文 件 名   : main.c
+   7          //  版 本 号   : v2.0
+   8          //  作    者   : HuangKai
+   9          //  生成日期   : 2014-0101
+  10          //  最近修改   : 
+  11          //  功能描述   : OLED 4接口演示例程(51系列)
+  12          //              说明: 
+  13          //              ----------------------------------------------------------------
+  14          //              GND    电源地
+  15          //              VCC  接5V或3.3v电源
+  16          //              SCL  P17（SCL）
+  17          //              SDA  P16（SDA）
+  18          //              RES  P15
+  19          //              DC   P14
+  20          //              CS   P13 
+  21          //              ----------------------------------------------------------------
+  22          // 修改历史   :
+  23          // 日    期   : 
+  24          // 作    者   : HuangKai
+  25          // 修改内容   : 创建文件
+  26          //版权所有，盗版必究。
+  27          //Copyright(C) 中景园电子2014/3/16
+  28          //All rights reserved
+  29          //******************************************************************************/
+  30          //#include "REG51.h"
+  31          #include "oled.h"
+  32          #include "OLED12864.h"
+  33          #include "bmp.h"
+  34          #define SIZES 896
+  35          #define T1MS (65536-32768)
+  36          int count,second;
+  37          void tm0_isr() interrupt 1 using 1 //1ms
+  38          {
+  39   1        TL0 = T1MS; //reload timer0 low byte
+  40   1        TH0 = T1MS >> 8; //reload timer0 high byte
+  41   1        count++;
+  42   1        if (count==3000)
+  43   1        {
+  44   2          count = 0; //reset counter
+  45   2          //second+=3;
+  46   2        }
+  47   1      }
+  48          void yanhua(int x,int y)
+  49          {
+  50   1        int xx=x+24,yy=y+3,yn=6,i;
+  51   1        unsigned char st=0x80,ed=0xff;
+  52   1        for(i=0;i<8;i++)
+  53   1        {
+  54   2          OLED_Set_Pos(xx,7);
+C51 COMPILER V9.56.0.0   MAIN                                                              01/30/2022 01:24:10 PAGE 2   
+
+  55   2          OLED_WR_Byte(st,OLED_DATA);
+  56   2          st=(st>>1)|0x80;
+  57   2          Delay(10);
+  58   2        }
+  59   1        for(yn=6;yn>yy;yn--)
+  60   1        {
+  61   2          st=0x80;
+  62   2          ed=0x7f;
+  63   2          for(i=0;i<8;i++)
+  64   2          {
+  65   3            OLED_Set_Pos(xx,yn);
+  66   3            OLED_WR_Byte(st,OLED_DATA);
+  67   3            OLED_Set_Pos(xx,yn+1);
+  68   3            OLED_WR_Byte(ed,OLED_DATA);
+  69   3            st=(st>>1)|0x80;
+  70   3            ed=ed>>1;
+  71   3            Delay(40-yn*5);
+  72   3          }
+  73   2        }
+  74   1        st=0x80;
+  75   1        ed=0x3f;
+  76   1        for(i=0;i<8;i++)
+  77   1        {
+  78   2          OLED_Set_Pos(xx,yy);
+  79   2          OLED_WR_Byte(st,OLED_DATA);
+  80   2          OLED_Set_Pos(xx,yy+1);
+  81   2          OLED_WR_Byte(ed,OLED_DATA);
+  82   2          st=(st>>1)|0x80;
+  83   2          ed=ed>>2;
+  84   2          Delay(40-yy*5);
+  85   2        }
+  86   1        for(i=0;i<7;i++)
+  87   1        {
+  88   2          OLED_DrawBMP(x,y,48,48,&fireworkdata[i*288]);
+  89   2          Delay(80);
+  90   2        }
+  91   1        OLED_Clear();
+  92   1        
+  93   1      }
+  94          int main(void)
+  95          { 
+  96   1        //u8 t=' ',dela=0;
+  97   1        u16 i,x,y;
+  98   1        count=0;
+  99   1        second=0;
+ 100   1        P1M1 = 0x03;
+ 101   1        P1M0 = 0x00; 
+ 102   1        AUXR = 0x80;
+ 103   1        TMOD = 0x01; 
+ 104   1        TL0 = T1MS; 
+ 105   1        TH0 = T1MS >> 8; 
+ 106   1        OLED_Init();//初始化OLED
+ 107   1        P1ASF=0x01;
+ 108   1        ADC_RES=0;
+ 109   1        ADC_CONTR=0xe0;//11100000
+ 110   1        TR0 = 1;
+ 111   1        while(1)
+ 112   1        {
+ 113   2          x=TL0%80;
+ 114   2          y=3000;
+ 115   2          while(y--);
+ 116   2          y=TL0%3;
+C51 COMPILER V9.56.0.0   MAIN                                                              01/30/2022 01:24:10 PAGE 3   
+
+ 117   2          yanhua(x,y);
+ 118   2          Delay(300);
+ 119   2        }
+ 120   1      }
+*** WARNING C280 IN LINE 97 OF main.c: 'i': unreferenced local variable
+ 121          
+ 122            
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    736    ----
+   CONSTANT SIZE    =   2016    ----
+   XDATA SIZE       =      4      20
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

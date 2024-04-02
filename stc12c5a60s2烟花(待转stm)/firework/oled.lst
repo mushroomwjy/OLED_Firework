@@ -1,0 +1,767 @@
+C51 COMPILER V9.56.0.0   OLED                                                              01/30/2022 01:24:11 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE OLED
+OBJECT MODULE PLACED IN oled.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE SRC\oled.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\SRC) DEBUG OBJECTEXTE
+                    -ND PRINT(.\oled.lst) TABS(2) OBJECT(oled.obj)
+
+line level    source
+
+   1          
+   2          #include "oled.h"
+   3          #include <stc12c5a60s2.h>   
+   4          #include "oledfont.h"    
+   5          //OLED的显存
+   6          //存放格式如下.
+   7          //[0]0 1 2 3 ... 127  
+   8          //[1]0 1 2 3 ... 127  
+   9          //[2]0 1 2 3 ... 127  
+  10          //[3]0 1 2 3 ... 127  
+  11          //[4]0 1 2 3 ... 127  
+  12          //[5]0 1 2 3 ... 127  
+  13          //[6]0 1 2 3 ... 127  
+  14          //[7]0 1 2 3 ... 127       
+  15          //u16 loc;
+  16          void  SPI_init(void)  
+  17          {
+  18   1        SPCTL = (SSIG << 7)+(SPEN << 6)+(DORD << 5)+(MSTR << 4)+(CPOL << 3)+(CPHA << 2)+SPEED_16;
+  19   1      }
+  20          void delay_ms(unsigned int ms)
+  21          {                         
+  22   1        unsigned int a;
+  23   1        while(ms)
+  24   1        {
+  25   2          a=2050;
+  26   2          while(a--);
+  27   2          ms--;
+  28   2        }
+  29   1        return;
+  30   1      }
+  31          
+  32          void uDelay(unsigned int us)
+  33          {
+  34   1        unsigned int a;
+  35   1        while(us)
+  36   1        {
+  37   2          a=2;
+  38   2          while(a--);
+  39   2          us--;
+  40   2        }
+  41   1        return;
+  42   1      }
+  43          
+  44          void Delay(unsigned int ms)
+  45          { 
+  46   1        delay_ms(ms);
+  47   1        return;
+  48   1      }
+  49          
+  50          //反显函数
+  51          void OLED_ColorTurn(u8 i)
+  52          {
+  53   1        if(i==0)
+  54   1          {
+C51 COMPILER V9.56.0.0   OLED                                                              01/30/2022 01:24:11 PAGE 2   
+
+  55   2            OLED_WR_Byte(0xA6,OLED_CMD);//正常显示
+  56   2          }
+  57   1        if(i==1)
+  58   1          {
+  59   2            OLED_WR_Byte(0xA7,OLED_CMD);//反色显示
+  60   2          }
+  61   1      }
+  62          
+  63          //屏幕旋转180度
+  64          void OLED_DisplayTurn(u8 i)
+  65          {
+  66   1        if(i==0)
+  67   1          {
+  68   2            OLED_WR_Byte(0xC8,OLED_CMD);//正常显示
+  69   2            OLED_WR_Byte(0xA1,OLED_CMD);
+  70   2          }
+  71   1        if(i==1)
+  72   1          {
+  73   2            OLED_WR_Byte(0xC0,OLED_CMD);//反转显示
+  74   2            OLED_WR_Byte(0xA0,OLED_CMD);
+  75   2          }
+  76   1      }
+  77          
+  78          
+  79          
+  80          void OLED_WR_Byte(u8 dat,u8 cmd)
+  81          { 
+  82   1      //  u8 i;       
+  83   1        if(cmd)
+  84   1          OLED_DC_Set();
+  85   1        else 
+  86   1          OLED_DC_Clr();      
+  87   1        OLED_CS_Clr();
+  88   1        
+  89   1            SPDAT = dat;    //发送一个字节
+  90   1            while((SPSTAT & SPIF)==0) ; //等待发送完成
+  91   1            SPSTAT = SPIF+WCOL;     //清0 SPIF和WCOL标志
+  92   1        /*
+  93   1        for(i=0;i<8;i++)
+  94   1        {       
+  95   1          OLED_SCL_Clr();
+  96   1          if(dat&0x80)
+  97   1          {
+  98   1           OLED_SDA_Set();
+  99   1          }
+ 100   1          else
+ 101   1          {
+ 102   1           OLED_SDA_Clr();
+ 103   1          }
+ 104   1          OLED_SCL_Set();
+ 105   1          dat<<=1;   
+ 106   1        }
+ 107   1        */
+ 108   1        OLED_CS_Set();
+ 109   1        OLED_DC_Set();      
+ 110   1      } 
+ 111          
+ 112          /*****************************************************************************************************/
+ 113          void Write_Command(unsigned char Data)
+ 114          {
+ 115   1        OLED_WR_Byte(Data,OLED_CMD);
+ 116   1      }
+C51 COMPILER V9.56.0.0   OLED                                                              01/30/2022 01:24:11 PAGE 3   
+
+ 117          
+ 118          
+ 119          void Write_Data(unsigned char Data)
+ 120          {
+ 121   1        OLED_WR_Byte(Data,OLED_DATA);
+ 122   1      }
+ 123          
+ 124          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 125          //  Instruction Setting
+ 126          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 127          void Set_Start_Column(unsigned char d)
+ 128          {
+ 129   1        Write_Command(0x00+d%16);   // Set Lower Column Start Address for Page Addressing Mode
+ 130   1                  //   Default => 0x00
+ 131   1        Write_Command(0x10+d/16);   // Set Higher Column Start Address for Page Addressing Mode
+ 132   1                  //   Default => 0x10
+ 133   1      }
+ 134          
+ 135          
+ 136          void Set_Addressing_Mode(unsigned char d)
+ 137          {
+ 138   1        Write_Command(0x20);      // Set Memory Addressing Mode
+ 139   1        Write_Command(d);     //   Default => 0x02
+ 140   1                  //     0x00 => Horizontal Addressing Mode
+ 141   1                  //     0x01 => Vertical Addressing Mode
+ 142   1                  //     0x02 => Page Addressing Mode
+ 143   1      }
+ 144          
+ 145          
+ 146          void Set_Column_Address(unsigned char a, unsigned char b)
+ 147          {
+ 148   1        Write_Command(0x21);      // Set Column Address
+ 149   1        Write_Command(a);     //   Default => 0x00 (Column Start Address)
+ 150   1        Write_Command(b);     //   Default => 0x7F (Column End Address)
+ 151   1      }
+ 152          
+ 153          
+ 154          void Set_Page_Address(unsigned char a, unsigned char b)
+ 155          {
+ 156   1        Write_Command(0x22);      // Set Page Address
+ 157   1        Write_Command(a);     //   Default => 0x00 (Page Start Address)
+ 158   1        Write_Command(b);     //   Default => 0x07 (Page End Address)
+ 159   1      }
+ 160          
+ 161          
+ 162          void Set_Start_Line(unsigned char d)
+ 163          {
+ 164   1        Write_Command(0x40|d);      // Set Display Start Line
+ 165   1                  //   Default => 0x40 (0x00)
+ 166   1      }
+ 167          
+ 168          
+ 169          void Set_Contrast_Control(unsigned char d)
+ 170          {
+ 171   1        Write_Command(0x81);      // Set Contrast Control for Bank 0
+ 172   1        Write_Command(d);     //   Default => 0x7F
+ 173   1      }
+ 174          
+ 175          
+ 176          void Set_Segment_Remap(unsigned char d)
+ 177          {
+ 178   1        Write_Command(d);     // Set Segment Re-Map
+C51 COMPILER V9.56.0.0   OLED                                                              01/30/2022 01:24:11 PAGE 4   
+
+ 179   1                  //   Default => 0xA0
+ 180   1                  //     0xA0 => Column Address 0 Mapped to SEG0
+ 181   1                  //     0xA1 => Column Address 0 Mapped to SEG127
+ 182   1      }
+ 183          
+ 184          
+ 185          void Set_Entire_Display(unsigned char d)
+ 186          {
+ 187   1        Write_Command(d);     // Set Entire Display On / Off
+ 188   1                  //   Default => 0xA4
+ 189   1                  //     0xA4 => Normal Display
+ 190   1                  //     0xA5 => Entire Display On
+ 191   1      }
+ 192          
+ 193          
+ 194          void Set_Inverse_Display(unsigned char d)
+ 195          {
+ 196   1        Write_Command(d);     // Set Inverse Display On/Off
+ 197   1                  //   Default => 0xA6
+ 198   1                  //     0xA6 => Normal Display
+ 199   1                  //     0xA7 => Inverse Display On
+ 200   1      }
+ 201          
+ 202          
+ 203          void Set_Multiplex_Ratio(unsigned char d)
+ 204          {
+ 205   1        Write_Command(0xA8);      // Set Multiplex Ratio
+ 206   1        Write_Command(d);     //   Default => 0x3F (1/64 Duty)
+ 207   1      }
+ 208          
+ 209          
+ 210          void Set_Display_On_Off(unsigned char d)  
+ 211          {
+ 212   1        Write_Command(d);     // Set Display On/Off
+ 213   1                  //   Default => 0xAE
+ 214   1                  //     0xAE => Display Off
+ 215   1                  //     0xAF => Display On
+ 216   1      }
+ 217          
+ 218          
+ 219          void Set_Start_Page(unsigned char d)
+ 220          {
+ 221   1        Write_Command(0xB0|d);      // Set Page Start Address for Page Addressing Mode
+ 222   1                  //   Default => 0xB0 (0x00)
+ 223   1      }
+ 224          
+ 225          
+ 226          void Set_Common_Remap(unsigned char d)
+ 227          {
+ 228   1        Write_Command(d);     // Set COM Output Scan Direction
+ 229   1                  //   Default => 0xC0
+ 230   1                  //     0xC0 => Scan from COM0 to 63
+ 231   1                  //     0xC8 => Scan from COM63 to 0
+ 232   1      }
+ 233          
+ 234          
+ 235          void Set_Display_Offset(unsigned char d)
+ 236          {
+ 237   1        Write_Command(0xD3);      // Set Display Offset
+ 238   1        Write_Command(d);     //   Default => 0x00
+ 239   1      }
+ 240          
+C51 COMPILER V9.56.0.0   OLED                                                              01/30/2022 01:24:11 PAGE 5   
+
+ 241          
+ 242          void Set_Display_Clock(unsigned char d)
+ 243          {
+ 244   1        Write_Command(0xD5);      // Set Display Clock Divide Ratio / Oscillator Frequency
+ 245   1        Write_Command(d);     //   Default => 0x70
+ 246   1                  //     D[3:0] => Display Clock Divider
+ 247   1                  //     D[7:4] => Oscillator Frequency
+ 248   1      }
+ 249          
+ 250          
+ 251          void Set_Low_Power(unsigned char d)
+ 252          {
+ 253   1        Write_Command(0xD8);      // Set Low Power Display Mode
+ 254   1        Write_Command(d);     //   Default => 0x04 (Normal Power Mode)
+ 255   1      }
+ 256          
+ 257          
+ 258          void Set_Precharge_Period(unsigned char d)
+ 259          {
+ 260   1        Write_Command(0xD9);      // Set Pre-Charge Period
+ 261   1        Write_Command(d);     //   Default => 0x22 (2 Display Clocks [Phase 2] / 2 Display Clocks [Phase 1])
+ 262   1                  //     D[3:0] => Phase 1 Period in 1~15 Display Clocks
+ 263   1                  //     D[7:4] => Phase 2 Period in 1~15 Display Clocks
+ 264   1      }
+ 265          
+ 266          
+ 267          void Set_Common_Config(unsigned char d)
+ 268          {
+ 269   1        Write_Command(0xDA);      // Set COM Pins Hardware Configuration
+ 270   1        Write_Command(d);     //   Default => 0x12
+ 271   1                  //     Alternative COM Pin Configuration
+ 272   1                  //     Disable COM Left/Right Re-Map
+ 273   1      }
+ 274          
+ 275          
+ 276          void Set_VCOMH(unsigned char d)
+ 277          {
+ 278   1        Write_Command(0xDB);      // Set VCOMH Deselect Level
+ 279   1        Write_Command(d);     //   Default => 0x34 (0.78*VCC)
+ 280   1      }
+ 281          
+ 282          
+ 283          void Set_NOP()
+ 284          {
+ 285   1        Write_Command(0xE3);      // Command for No Operation
+ 286   1      }
+ 287          
+ 288          
+ 289          void Set_Command_Lock(unsigned char d)
+ 290          {
+ 291   1        Write_Command(0xFD);      // Set Command Lock
+ 292   1        Write_Command(d);     //   Default => 0x12
+ 293   1                  //     0x12 => Driver IC interface is unlocked from entering command.
+ 294   1                  //     0x16 => All Commands are locked except 0xFD.
+ 295   1      }
+ 296          
+ 297          
+ 298          //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 299          //  Global Variables
+ 300          //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 301          #define XLevelL   0x00
+ 302          #define XLevelH   0x10
+C51 COMPILER V9.56.0.0   OLED                                                              01/30/2022 01:24:11 PAGE 6   
+
+ 303          #define XLevel    ((XLevelH&0x0F)*16+XLevelL)
+ 304          #define Max_Column  128
+ 305          #define Max_Row   64
+ 306          #define Brightness  0xBF
+ 307          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 308          //  Show Regular Pattern (Full Screen)
+ 309          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 310          void Fill_RAM(unsigned char Data)
+ 311          {
+ 312   1      unsigned char i,j;
+ 313   1      
+ 314   1        for(i=0;i<8;i++)
+ 315   1        {
+ 316   2          Set_Start_Page(i);
+ 317   2          Set_Start_Column(0x00);
+ 318   2      
+ 319   2          for(j=0;j<128;j++)
+ 320   2          {
+ 321   3            Write_Data(Data);
+ 322   3          }
+ 323   2        }
+ 324   1      }
+ 325          
+ 326          
+ 327          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 328          //  Show Regular Pattern (Partial or Full Screen)
+ 329          //
+ 330          //    a: Start Page
+ 331          //    b: End Page
+ 332          //    c: Start Column
+ 333          //    d: Total Columns
+ 334          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 335          void Fill_Block(unsigned char Data, unsigned char a, unsigned char b, unsigned char c, unsigned char d)
+ 336          {
+ 337   1      unsigned char i,j;
+ 338   1        
+ 339   1        for(i=a;i<(b+1);i++)
+ 340   1        {
+ 341   2          Set_Start_Page(i);
+ 342   2          Set_Start_Column(c);
+ 343   2      
+ 344   2          for(j=0;j<d;j++)
+ 345   2          {
+ 346   3            Write_Data(Data);
+ 347   3          }
+ 348   2        }
+ 349   1      }
+ 350          
+ 351          
+ 352          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 353          //  Show Checkboard (Full Screen)
+ 354          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 355          void Checkerboard()
+ 356          {
+ 357   1      unsigned char i,j;
+ 358   1        
+ 359   1        for(i=0;i<8;i++)
+ 360   1        {
+ 361   2          Set_Start_Page(i);
+ 362   2          Set_Start_Column(0x00);
+ 363   2      
+ 364   2          for(j=0;j<64;j++)
+C51 COMPILER V9.56.0.0   OLED                                                              01/30/2022 01:24:11 PAGE 7   
+
+ 365   2          {
+ 366   3            Write_Data(0x55);
+ 367   3            Write_Data(0xaa);
+ 368   3          }
+ 369   2        }
+ 370   1      }
+ 371          
+ 372          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 373          //  Vertical / Fade Scrolling (Partial or Full Screen)
+ 374          //
+ 375          //    a: Scrolling Direction
+ 376          //       "0x00" (Upward)
+ 377          //       "0x01" (Downward)
+ 378          //    b: Set Top Fixed Area
+ 379          //    c: Set Vertical Scroll Area
+ 380          //    d: Set Numbers of Row Scroll per Step
+ 381          //    e: Set Time Interval between Each Scroll Step
+ 382          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 383          void Vertical_Scroll(unsigned char a, unsigned char b, unsigned char c, unsigned char d, unsigned char e)
+ 384          {
+ 385   1      unsigned int i,j; 
+ 386   1      
+ 387   1        Write_Command(0xA3);      // Set Vertical Scroll Area
+ 388   1        Write_Command(b);     //   Default => 0x00 (Top Fixed Area)
+ 389   1        Write_Command(c);     //   Default => 0x40 (Vertical Scroll Area)
+ 390   1      
+ 391   1        switch(a)
+ 392   1        {
+ 393   2          case 0:
+ 394   2            for(i=0;i<c;i+=d)
+ 395   2            {
+ 396   3              Set_Start_Line(i);
+ 397   3              for(j=0;j<e;j++)
+ 398   3              {
+ 399   4                uDelay(200);
+ 400   4              }
+ 401   3            }
+ 402   2            break;
+ 403   2          case 1:
+ 404   2            for(i=0;i<c;i+=d)
+ 405   2            {
+ 406   3              Set_Start_Line(c-i);
+ 407   3              for(j=0;j<e;j++)
+ 408   3              {
+ 409   4                uDelay(200);
+ 410   4              }
+ 411   3            }
+ 412   2            break;
+ 413   2        }
+ 414   1        Set_Start_Line(0x00);
+ 415   1      }
+ 416          
+ 417          
+ 418          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 419          //  Continuous Horizontal Scrolling (Partial or Full Screen)
+ 420          //
+ 421          //    a: Scrolling Direction
+ 422          //       "0x00" (Rightward)
+ 423          //       "0x01" (Leftward)
+ 424          //    b: Define Start Page Address
+ 425          //    c: Define End Page Address
+ 426          //    d: Define Start Column Address
+C51 COMPILER V9.56.0.0   OLED                                                              01/30/2022 01:24:11 PAGE 8   
+
+ 427          //    e: Define End Column Address
+ 428          //    f: Set Time Interval between Each Scroll Step in Terms of Frame Frequency
+ 429          //    g: Delay Time
+ 430          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 431          void Horizontal_Scroll(unsigned char a, unsigned char b, unsigned char c, unsigned char d, unsigned char e
+             -, unsigned char f, unsigned char g)
+ 432          {
+ 433   1        Write_Command(0x26|a);      // Horizontal Scroll Setup
+ 434   1        Write_Command(0x00);
+ 435   1        Write_Command(b);
+ 436   1        Write_Command(f);
+ 437   1        Write_Command(c);
+ 438   1        Write_Command(0x00);
+ 439   1        Write_Command(d);
+ 440   1        Write_Command(e);
+ 441   1        Write_Command(0x2F);      // Activate Scrolling
+ 442   1        Delay(g);
+ 443   1      }
+ 444          
+ 445          
+ 446          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 447          //  Continuous Vertical / Horizontal / Diagonal Scrolling (Partial or Full Screen)
+ 448          //
+ 449          //    a: Scrolling Direction
+ 450          //       "0x00" (Vertical & Rightward)
+ 451          //       "0x01" (Vertical & Leftward)
+ 452          //    b: Set Numbers of Column Scroll per Step (Horizontal / Diagonal Scrolling)
+ 453          //       "0x00" (Horizontal / Diagonal Scrolling Off)
+ 454          //       "0x01" (Horizontal / Diagonal Scrolling by 1 Column)
+ 455          //    c: Define Start Row Address (Horizontal / Diagonal Scrolling)
+ 456          //    d: Define End Page Address (Horizontal / Diagonal Scrolling)
+ 457          //    e: Define Start Column Address
+ 458          //    f: Define End Column Address
+ 459          //    g: Set Top Fixed Area (Vertical Scrolling)
+ 460          //    h: Set Vertical Scroll Area (Vertical Scrolling)
+ 461          //    i: Set Numbers of Row Scroll per Step (Vertical / Diagonal Scrolling)
+ 462          //    j: Set Time Interval between Each Scroll Step in Terms of Frame Frequency
+ 463          //    k: Delay Time
+ 464          //    * e+f must be less than or equal to the Multiplex Ratio...
+ 465          // 
+ 466          //    a: 水平滚动方向
+ 467          //       "0x00" 向右
+ 468          //       "0x01" 向左
+ 469          //    b: 是否水平滚动
+ 470          //       "0x00" 不滚动
+ 471          //       "0x01" 滚动
+ 472          //    c: 水平滚动起始页 0~7
+ 473          //    d: 水平滚动结束页 0~7
+ 474          //    e: 水平滚动起始列 0~127
+ 475          //    f: 水平滚动结束列 0~127
+ 476          //    g: 垂直滚动起始行 0~63
+ 477          //    h: 垂直滚动区域 g+h<=63
+ 478          //    i: 每次垂直滚动多少行（向上）
+ 479          //    j: 根据帧频设置每个滚动步骤之间的时间间隔
+ 480          //    k: 延时
+ 481          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 482          void Continuous_Scroll(unsigned char a, unsigned char b, unsigned char c, unsigned char d, unsigned char e
+             -, unsigned char f, unsigned char g, unsigned char h, unsigned char i, unsigned char j, unsigned char k)
+ 483          {
+ 484   1        Write_Command(0xA3);      // Set Vertical Scroll Area
+ 485   1        Write_Command(g);     //   Default => 0x00 (Top Fixed Area)
+ 486   1        Write_Command(h);     //   Default => 0x40 (Vertical Scroll Area)
+C51 COMPILER V9.56.0.0   OLED                                                              01/30/2022 01:24:11 PAGE 9   
+
+ 487   1      
+ 488   1        Write_Command(0x29+a);      // Continuous Vertical & Horizontal Scroll Setup
+ 489   1        Write_Command(b);
+ 490   1        Write_Command(c);
+ 491   1        Write_Command(j);
+ 492   1        Write_Command(d);
+ 493   1        Write_Command(i);
+ 494   1        Write_Command(e);
+ 495   1        Write_Command(f);
+ 496   1        Write_Command(0x2F);      // Activate Scrolling
+ 497   1        Delay(k);
+ 498   1      }
+ 499          
+ 500          
+ 501          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 502          //  Deactivate Scrolling (Full Screen)
+ 503          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 504          void Deactivate_Scroll()
+ 505          {
+ 506   1        Write_Command(0x2E);      // Deactivate Scrolling
+ 507   1      }
+ 508          
+ 509          
+ 510          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 511          //  Fade In (Full Screen)
+ 512          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 513          void Fade_In()
+ 514          {
+ 515   1      unsigned int i; 
+ 516   1      
+ 517   1        Set_Display_On_Off(0xAF);
+ 518   1        for(i=0;i<(Brightness+1);i++)
+ 519   1        {
+ 520   2          Set_Contrast_Control(i);
+ 521   2          uDelay(200);
+ 522   2          uDelay(200);
+ 523   2          uDelay(200);
+ 524   2        }
+ 525   1      }
+ 526          
+ 527          
+ 528          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 529          //  Fade Out (Full Screen)
+ 530          //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+ 531          void Fade_Out()
+ 532          {
+ 533   1      unsigned int i; 
+ 534   1      
+ 535   1        for(i=(Brightness+1);i>0;i--)
+ 536   1        {
+ 537   2          Set_Contrast_Control(i-1);
+ 538   2          uDelay(200);
+ 539   2          uDelay(200);
+ 540   2          uDelay(200);
+ 541   2        }
+ 542   1        Set_Display_On_Off(0xAE);
+ 543   1      }
+ 544          
+ 545          
+ 546          /*********************************************************************************************************
+             -**/
+ 547          //坐标设置
+C51 COMPILER V9.56.0.0   OLED                                                              01/30/2022 01:24:11 PAGE 10  
+
+ 548          
+ 549          void OLED_Set_Pos(u8 x, u8 y) 
+ 550          { 
+ 551   1        OLED_WR_Byte(0xb0+y,OLED_CMD);
+ 552   1        OLED_WR_Byte(((x&0xf0)>>4)|0x10,OLED_CMD);
+ 553   1        OLED_WR_Byte((x&0x0f),OLED_CMD);
+ 554   1      }       
+ 555          //开启OLED显示    
+ 556          void OLED_Display_On(void)
+ 557          {
+ 558   1        OLED_WR_Byte(0X8D,OLED_CMD);  //SET DCDC命令
+ 559   1        OLED_WR_Byte(0X14,OLED_CMD);  //DCDC ON
+ 560   1        OLED_WR_Byte(0XAF,OLED_CMD);  //DISPLAY ON
+ 561   1      }
+ 562          //关闭OLED显示     
+ 563          void OLED_Display_Off(void)
+ 564          {
+ 565   1        OLED_WR_Byte(0X8D,OLED_CMD);  //SET DCDC命令
+ 566   1        OLED_WR_Byte(0X10,OLED_CMD);  //DCDC OFF
+ 567   1        OLED_WR_Byte(0XAE,OLED_CMD);  //DISPLAY OFF
+ 568   1      }            
+ 569          //清屏函数,清完屏,整个屏幕是黑色的!和没点亮一样!!!    
+ 570          void OLED_Clear(void)  
+ 571          {  
+ 572   1        u8 i,n;       
+ 573   1        for(i=0;i<8;i++)  
+ 574   1        {  
+ 575   2          OLED_WR_Byte (0xb0+i,OLED_CMD);    //设置页地址（0~7）
+ 576   2          OLED_WR_Byte (0x00,OLED_CMD);      //设置显示位置—列低地址
+ 577   2          OLED_WR_Byte (0x10,OLED_CMD);      //设置显示位置—列高地址   
+ 578   2          for(n=0;n<128;n++)OLED_WR_Byte(0,OLED_DATA); 
+ 579   2        } //更新显示
+ 580   1      }
+ 581          
+ 582          //在指定位置显示一个字符,包括部分字符
+ 583          //x:0~127
+ 584          //y:0~63         ?0-7
+ 585          //sizey:选择字体 6x8  8x16
+ 586          void OLED_ShowChar(u8 x,u8 y,u8 chr,u8 sizey)
+ 587          {       
+ 588   1        u8 c=0,sizex=sizey/2;
+ 589   1        u16 i=0,size1;
+ 590   1        if(sizey==8)size1=6;
+ 591   1        else size1=(sizey/8+((sizey%8)?1:0))*(sizey/2);
+ 592   1        c=chr-' ';//得到偏移后的值
+ 593   1        OLED_Set_Pos(x,y);
+ 594   1        for(i=0;i<size1;i++)
+ 595   1        {
+ 596   2          if(i%sizex==0&&sizey!=8) OLED_Set_Pos(x,y++);
+ 597   2          if(sizey==8) OLED_WR_Byte(asc2_0806[c][i],OLED_DATA);//6X8字号
+ 598   2          else if(sizey==16) OLED_WR_Byte(asc2_1608[c][i],OLED_DATA);//8x16字号
+ 599   2      //    else if(sizey==xx) OLED_WR_Byte(asc2_xxxx[c][i],OLED_DATA);//用户添加字号
+ 600   2          else return;
+ 601   2        }
+ 602   1      }
+ 603          //m^n函数
+ 604          u32 oled_pow(u8 m,u8 n)
+ 605          {
+ 606   1        u32 result=1;  
+ 607   1        while(n--)result*=m;    
+ 608   1        return result;
+ 609   1      }         
+C51 COMPILER V9.56.0.0   OLED                                                              01/30/2022 01:24:11 PAGE 11  
+
+ 610          //显示数字
+ 611          //x,y :起点坐标
+ 612          //num:要显示的数字
+ 613          //len :数字的位数
+ 614          //sizey:字体大小      
+ 615          void OLED_ShowNum(u8 x,u8 y,u32 num,u8 len,u8 sizey)
+ 616          {           
+ 617   1        u8 t,temp,m=0;
+ 618   1        u8 enshow=0;
+ 619   1        if(sizey==8)m=2;
+ 620   1        for(t=0;t<len;t++)
+ 621   1        {
+ 622   2          temp=(num/oled_pow(10,len-t-1))%10;
+ 623   2          if(enshow==0&&t<(len-1))
+ 624   2          {
+ 625   3            if(temp==0)
+ 626   3            {
+ 627   4              OLED_ShowChar(x+(sizey/2+m)*t,y,' ',sizey);
+ 628   4              continue;
+ 629   4            }else enshow=1;
+ 630   3          }
+ 631   2          OLED_ShowChar(x+(sizey/2+m)*t,y,temp+'0',sizey);
+ 632   2        }
+ 633   1      }
+ 634          //显示一个字符号串
+ 635          void OLED_ShowString(u8 x,u8 y,u8 *chr,u8 sizey)
+ 636          {
+ 637   1        u8 j=0;
+ 638   1        while (chr[j]!='\0')
+ 639   1        {   
+ 640   2          OLED_ShowChar(x,y,chr[j++],sizey);
+ 641   2          if(sizey==8)x+=6;
+ 642   2          else x+=sizey/2;
+ 643   2        }
+ 644   1      }
+ 645          //显示汉字
+ 646          void OLED_ShowChinese(u8 x,u8 y,u8 no,u8 sizey)
+ 647          {
+ 648   1        u16 i,size1=(sizey/8+((sizey%8)?1:0))*sizey;
+ 649   1        for(i=0;i<size1;i++)
+ 650   1        {
+ 651   2          if(i%sizey==0) OLED_Set_Pos(x,y++);
+ 652   2          if(sizey==16) OLED_WR_Byte(Hzk[no][i],OLED_DATA);//16x16字号
+ 653   2      //    else if(sizey==xx) OLED_WR_Byte(xxx[c][i],OLED_DATA);//用户添加字号
+ 654   2          else return;
+ 655   2        }       
+ 656   1      }
+ 657          
+ 658          
+ 659          //显示图片
+ 660          //x,y显示坐标
+ 661          //sizex,sizey,图片长宽
+ 662          //BMP：要显示的图片
+ 663          void OLED_DrawBMP(u8 x,u8 y,u8 sizex, u8 sizey,u8 BMP[])
+ 664          {   
+ 665   1        u16 j=0;
+ 666   1        u8 i,m;
+ 667   1        sizey=sizey/8+((sizey%8)?1:0);
+ 668   1        for(i=0;i<sizey;i++)
+ 669   1        {
+ 670   2          OLED_Set_Pos(x,i+y);
+ 671   2          for(m=0;m<sizex;m++)
+C51 COMPILER V9.56.0.0   OLED                                                              01/30/2022 01:24:11 PAGE 12  
+
+ 672   2          {      
+ 673   3            OLED_WR_Byte(BMP[j++],OLED_DATA);       
+ 674   3          }
+ 675   2        }
+ 676   1      } 
+ 677          
+ 678          
+ 679          //初始化            
+ 680          void OLED_Init(void)
+ 681          {
+ 682   1        SPI_init();
+ 683   1        delay_ms(200);
+ 684   1        OLED_RES_Clr();
+ 685   1        delay_ms(200);
+ 686   1        OLED_RES_Set();
+ 687   1        
+ 688   1        OLED_WR_Byte(0xAE,OLED_CMD);//--turn off oled panel
+ 689   1        OLED_WR_Byte(0xFD,OLED_CMD);
+ 690   1        OLED_WR_Byte(0x12,OLED_CMD);
+ 691   1        OLED_WR_Byte(0xd5,OLED_CMD);//--set display clock divide ratio/oscillator frequency
+ 692   1        OLED_WR_Byte(0xA0,OLED_CMD);
+ 693   1        OLED_WR_Byte(0xA8,OLED_CMD);//--set multiplex ratio(1 to 64)
+ 694   1        OLED_WR_Byte(0x3f,OLED_CMD);//--1/64 duty
+ 695   1        OLED_WR_Byte(0xD3,OLED_CMD);//-set display offset Shift Mapping RAM Counter (0x00~0x3F)
+ 696   1        OLED_WR_Byte(0x00,OLED_CMD);//-not offset
+ 697   1        OLED_WR_Byte(0x40,OLED_CMD);//--set start line address  Set Mapping RAM Display Start Line (0x00~0x3F)
+ 698   1        OLED_WR_Byte(0xA1,OLED_CMD);//--Set SEG/Column Mapping     0xa0左右反置 0xa1正常
+ 699   1        OLED_WR_Byte(0xC8,OLED_CMD);//Set COM/Row Scan Direction   0xc0上下反置 0xc8正常
+ 700   1        OLED_WR_Byte(0xDA,OLED_CMD);//--set com pins hardware configuration
+ 701   1        OLED_WR_Byte(0x12,OLED_CMD);
+ 702   1        OLED_WR_Byte(0x81,OLED_CMD);//--set contrast control register
+ 703   1        OLED_WR_Byte(0xBF,OLED_CMD);// Set SEG Output Current Brightness
+ 704   1        OLED_WR_Byte(0xD9,OLED_CMD);//--set pre-charge period
+ 705   1        OLED_WR_Byte(0x25,OLED_CMD);//Set Pre-Charge as 15 Clocks & Discharge as 1 Clock
+ 706   1        OLED_WR_Byte(0xDB,OLED_CMD);//--set vcomh
+ 707   1        OLED_WR_Byte(0x34,OLED_CMD);//Set VCOM Deselect Level
+ 708   1        OLED_WR_Byte(0xA4,OLED_CMD);// Disable Entire Display On (0xa4/0xa5)
+ 709   1        OLED_WR_Byte(0xA6,OLED_CMD);// Disable Inverse Display On (0xa6/a7)
+ 710   1        OLED_Clear();
+ 711   1        OLED_WR_Byte(0xAF,OLED_CMD);
+ 712   1        OLED_ColorTurn(0);//0正常显示，1 反色显示
+ 713   1        OLED_DisplayTurn(0);//0正常显示 1 屏幕翻转显示
+ 714   1      }
+ 715          
+ 716          
+ 717          
+ 718          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2111    ----
+   CONSTANT SIZE    =   2296    ----
+   XDATA SIZE       =   ----      80
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
